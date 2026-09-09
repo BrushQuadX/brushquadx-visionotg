@@ -1,0 +1,48 @@
+name: Windows package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable-x86_64-pc-windows-msvc
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress --yes
+
+      - name: Install GStreamer build tools
+        shell: pwsh
+        run: |
+          choco install pkgconfiglite --no-progress --yes
+
+      - name: Build installer
+        shell: pwsh
+        run: .\packaging\windows\build_windows.ps1
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VisionOTG-windows-x64
+          path: target/windows-installer/VisionOTGSetup.exe
+          if-no-files-found: error
+
+      - name: Attach installer to tag release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/windows-installer/VisionOTGSetup.exe
