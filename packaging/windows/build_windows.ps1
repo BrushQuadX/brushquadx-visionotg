@@ -84,6 +84,8 @@ New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 Copy-Item $executable (Join-Path $OutputDirectory "votg.exe")
 Copy-Item (Join-Path $runtimeDirectory "onnxruntime.dll") $OutputDirectory
 Copy-Item (Join-Path $runtimeDirectory "gstreamer") (Join-Path $OutputDirectory "gstreamer") -Recurse
+$gstreamerBinDirectory = Join-Path $OutputDirectory "gstreamer\bin"
+Copy-Item (Join-Path $gstreamerBinDirectory "*.dll") $OutputDirectory -Force
 Copy-Item (Join-Path $repositoryRoot "assets\models") (Join-Path $OutputDirectory "models") -Recurse
 Copy-Item (Join-Path $repositoryRoot "assets\images\visionotg.ico") $OutputDirectory
 
