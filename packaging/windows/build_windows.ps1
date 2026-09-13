@@ -1,6 +1,7 @@
 param(
 	[string]$Configuration = "release",
 	[string]$OutputDirectory = (Join-Path $PSScriptRoot "..\..\target\windows-bundle"),
+    [string]$Version = "",
 	[switch]$SkipBuild
 )
 
@@ -11,6 +12,19 @@ $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $runtimeDirectory = Join-Path $repositoryRoot "target\windows-runtime"
 $executable = Join-Path $repositoryRoot "target\$Configuration\votg.exe"
 $installerCompiler = $null
+
+if (-not $Version) {
+    $Version = $env:GITHUB_REF_NAME
+}
+
+if (-not $Version) {
+    $Version = "1.0.0"
+}
+
+$Version = $Version -replace '^v', ''
+if ($Version -notmatch '^\d+(\.\d+){1,3}$') {
+    throw "Version must be numeric and contain between two and four components, for example 1.0.0 or v1.2.3."
+}
 
 $innoSetupRoots = @(
     ${env:ProgramFiles(x86)},
@@ -69,10 +83,11 @@ Copy-Item $executable (Join-Path $OutputDirectory "votg.exe")
 Copy-Item (Join-Path $runtimeDirectory "onnxruntime.dll") $OutputDirectory
 Copy-Item (Join-Path $runtimeDirectory "gstreamer") (Join-Path $OutputDirectory "gstreamer") -Recurse
 Copy-Item (Join-Path $repositoryRoot "assets\models") (Join-Path $OutputDirectory "models") -Recurse
+Copy-Item (Join-Path $repositoryRoot "assets\images\visionotg.ico") $OutputDirectory
 
 if (-not $installerCompiler -or -not (Test-Path $installerCompiler)) {
 	throw "Inno Setup was not found. Install a recent version from https://jrsoftware.org/isdl.php."
 }
 
-& $installerCompiler "/DMyAppVersion=0.1.0" "/DSourceDir=$OutputDirectory" (Join-Path $PSScriptRoot "installer.iss")
+& $installerCompiler "/DMyAppVersion=$Version" "/DSourceDir=$OutputDirectory" (Join-Path $PSScriptRoot "installer.iss")
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE." }

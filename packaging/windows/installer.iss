@@ -2,7 +2,7 @@
 #define MyAppPublisher "BrushQuadX"
 #define MyAppExeName "votg.exe"
 #ifndef MyAppVersion
-	#define MyAppVersion "0.1.0"
+	#define MyAppVersion "1.0.0"
 #endif
 #ifndef SourceDir
 	#define SourceDir AddBackslash(SourcePath) + "..\..\target\windows-bundle"
@@ -22,14 +22,15 @@ SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64
 PrivilegesRequired=admin
 WizardStyle=modern
-UninstallDisplayIcon={app}\{#MyAppExeName}
+SetupIconFile={#SourceDir}\visionotg.ico
+UninstallDisplayIcon={app}\visionotg.ico
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\visionotg.ico"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\visionotg.ico"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent

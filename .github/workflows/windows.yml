@@ -15,7 +15,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -35,7 +35,7 @@ jobs:
         run: .\packaging\windows\build_windows.ps1
 
       - name: Upload installer
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: VisionOTG-windows-x64
           path: target/windows-installer/VisionOTGSetup.exe

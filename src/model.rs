@@ -66,7 +66,7 @@ impl Normalization {
     }
 }
 
-fn configure_runtime() {
+pub fn configure_runtime() {
     #[cfg(target_os = "windows")]
     {
         let Some(exe_dir) = std::env::current_exe()
@@ -262,8 +262,6 @@ pub fn start_model(
     norm: Normalization,
 ) -> Result<std::thread::JoinHandle<()>, Box<dyn Error>> {
     let model_path = model_directory().join(model);
-
-    configure_runtime();
 
     let model_thread = inference_handler(
         model_path.to_string_lossy().into_owned(),

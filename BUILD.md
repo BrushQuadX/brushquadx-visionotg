@@ -94,6 +94,8 @@ The following commands must be run on your PC with administrator permissions.
     * invokes Inno Setup
     * creates the final installer at: `target/windows-installer/VisionOTGSetup.exe`
 
+    The installer version comes from the Git tag in GitHub Actions, with the leading `v` removed (for example, `v1.2.3` becomes `1.2.3`). Local and manually triggered builds default to version `1.0.0`; you can override it with `-Version`, for example `-Version 1.2.3`.
+
     To prepare or troubleshoot the runtime separately, you can run the downloader directly:
 
     ```shell

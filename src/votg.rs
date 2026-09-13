@@ -6,6 +6,8 @@ mod model;
 use eframe::egui;
 
 fn main() -> eframe::Result {
+    model::configure_runtime();
+
     // Initialization menu window
     let onnx_files = match model::read_model_contents() {
         Ok(files) => files,
