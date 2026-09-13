@@ -14,7 +14,9 @@ $executable = Join-Path $repositoryRoot "target\$Configuration\votg.exe"
 $installerCompiler = $null
 
 if (-not $Version) {
-    $Version = $env:GITHUB_REF_NAME
+    if ($env:GITHUB_REF -like "refs/tags/*") {
+        $Version = $env:GITHUB_REF_NAME
+    }
 }
 
 if (-not $Version) {
