@@ -10,12 +10,51 @@ $repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."
 $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory)
 $runtimeDirectory = Join-Path $repositoryRoot "target\windows-runtime"
 $executable = Join-Path $repositoryRoot "target\$Configuration\votg.exe"
-$installerCompiler = Join-Path ${env:ProgramFiles(x86)} "Inno Setup 6\ISCC.exe"
+$installerCompiler = $null
+
+$innoSetupRoots = @(
+    ${env:ProgramFiles(x86)},
+    ${env:ProgramFiles}
+)
+
+foreach ($innoSetupRoot in $innoSetupRoots) {
+    if (-not $innoSetupRoot) { continue }
+
+    $candidate = Get-ChildItem -Path $innoSetupRoot -Filter "ISCC.exe" -Recurse -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending |
+        Select-Object -ExpandProperty FullName -First 1
+
+    if ($candidate) {
+        $installerCompiler = $candidate
+        break
+    }
+}
+
+if (-not $installerCompiler) {
+    $installerCompiler = Get-Command "ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+}
 
 & (Join-Path $PSScriptRoot "download_runtime.ps1") -OutputDirectory $runtimeDirectory
 $gstreamerDevDirectory = Join-Path $runtimeDirectory "gstreamer-devel"
-$env:GSTREAMER_1_0_ROOT_MSVC_X86_64 = $gstreamerDevDirectory
-$env:PKG_CONFIG_PATH = Join-Path $gstreamerDevDirectory "lib\pkgconfig"
+$gstreamerPkgConfigRoot = Get-ChildItem -Path $gstreamerDevDirectory -Recurse -Directory -Filter "pkgconfig" -ErrorAction SilentlyContinue |
+    Select-Object -First 1 -ExpandProperty FullName
+
+if (-not $gstreamerPkgConfigRoot) {
+    $gstreamerPackageRoot = Get-ChildItem -Path $runtimeDirectory -Recurse -Directory -Filter "msvc_x86_64" -ErrorAction SilentlyContinue |
+        Select-Object -First 1 -ExpandProperty FullName
+
+    if ($gstreamerPackageRoot) {
+        $gstreamerPkgConfigRoot = Join-Path $gstreamerPackageRoot "lib\pkgconfig"
+    }
+}
+
+if (-not $gstreamerPkgConfigRoot -or -not (Test-Path $gstreamerPkgConfigRoot)) {
+    throw "Could not find the GStreamer pkg-config directory under $gstreamerDevDirectory."
+}
+
+$gstreamerRoot = Split-Path -Path $gstreamerPkgConfigRoot -Parent | Split-Path -Parent
+$env:GSTREAMER_1_0_ROOT_MSVC_X86_64 = $gstreamerRoot
+$env:PKG_CONFIG_PATH = $gstreamerPkgConfigRoot
 
 if (-not $SkipBuild) {
 	Push-Location $repositoryRoot
@@ -30,12 +69,9 @@ Copy-Item $executable (Join-Path $OutputDirectory "votg.exe")
 Copy-Item (Join-Path $runtimeDirectory "onnxruntime.dll") $OutputDirectory
 Copy-Item (Join-Path $runtimeDirectory "gstreamer") (Join-Path $OutputDirectory "gstreamer") -Recurse
 Copy-Item (Join-Path $repositoryRoot "assets\models") (Join-Path $OutputDirectory "models") -Recurse
-if (Test-Path (Join-Path $repositoryRoot "assets\config")) {
-	Copy-Item (Join-Path $repositoryRoot "assets\config") (Join-Path $OutputDirectory "config") -Recurse
-}
 
-if (-not (Test-Path $installerCompiler)) {
-	throw "Inno Setup 6 was not found at $installerCompiler. Install it from https://jrsoftware.org/isdl.php."
+if (-not $installerCompiler -or -not (Test-Path $installerCompiler)) {
+	throw "Inno Setup was not found. Install a recent version from https://jrsoftware.org/isdl.php."
 }
 
 & $installerCompiler "/DMyAppVersion=0.1.0" "/DSourceDir=$OutputDirectory" (Join-Path $PSScriptRoot "installer.iss")

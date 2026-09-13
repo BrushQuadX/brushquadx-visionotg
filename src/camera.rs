@@ -6,6 +6,7 @@ use std::sync::{
     mpsc,
 };
 
+#[derive(Clone)]
 pub struct Frame {
     pub width: usize,
     pub height: usize,
@@ -15,9 +16,7 @@ pub struct Frame {
 // -----------------------------------------------------
 // PIPELINE: camera -> videoconvert -> tee -> overlay + AI
 // -----------------------------------------------------
-pub fn create_pipeline(
-    camera: &str,
-) -> Result<(gstreamer::Pipeline, gstreamer::Element), Box<dyn Error>> {
+pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Error>> {
     // Choose camera source based on OS
     let (camera_src, camera_index) = {
         #[cfg(target_os = "linux")]
@@ -42,9 +41,14 @@ pub fn create_pipeline(
         "{} {} \
         ! videoconvert \
         ! tee name=t \
-           t. ! queue ! cairooverlay name=overlay ! videoconvert ! autovideosink \
-           t. ! queue ! videoscale ! videoconvert ! video/x-raw,width=640,height=640,format=RGB \
-           ! appsink name=ai_sink emit-signals=true sync=false",
+        t. ! queue \
+            ! video/x-raw,format=RGB \
+            ! appsink name=display_sink emit-signals=true sync=false max-buffers=1 drop=true \
+        t. ! queue \
+            ! videoscale \
+            ! videoconvert \
+            ! video/x-raw,width=640,height=640,format=RGB \
+            ! appsink name=model_sink emit-signals=true sync=false max-buffers=1 drop=true",
         camera_src, camera_index
     );
 
@@ -52,23 +56,41 @@ pub fn create_pipeline(
         .dynamic_cast::<gstreamer::Pipeline>()
         .expect("Failed to launch GStreamer pipeline");
 
-    let overlay = pipeline
-        .by_name("overlay")
-        .expect("Cairo overlay element not found");
-
-    Ok((pipeline, overlay))
+    Ok(pipeline)
 }
 
-// Spawn a thread to handle appsink samples
-pub fn appsink_handler(
+fn sample_to_frame(sample: &gstreamer::Sample) -> Option<Frame> {
+    // Get video metadata
+    let caps = sample
+        .caps()
+        .expect("Failed to get sample caps from the appsink");
+
+    let info = gstreamer_video::VideoInfo::from_caps(caps).expect("Failed to parse VideoInfo");
+    let width = info.width() as usize;
+    let height = info.height() as usize;
+
+    // Extract the buffer payload from the pulled sample
+    let buffer = sample.buffer()?;
+    let map = buffer.map_readable().ok()?;
+    let pixels = map.as_slice().to_vec();
+
+    Some(Frame {
+        width,
+        height,
+        pixels,
+    })
+}
+
+// Spawn a thread to handle appsink input samples for model inference
+fn model_handler(
     pipeline: &gstreamer::Pipeline,
-    frame_tx: mpsc::SyncSender<Frame>,
+    model_tx: mpsc::SyncSender<Frame>,
     shutdown: Arc<AtomicBool>,
 ) -> std::thread::JoinHandle<()> {
     // Use for AI detections: Extract the appsink elements by its string name
     let appsink = pipeline
-        .by_name("ai_sink")
-        .expect("GStreamer element ai_sink was not found")
+        .by_name("model_sink")
+        .expect("GStreamer element model_sink was not found")
         .dynamic_cast::<gstreamer_app::AppSink>()
         .expect("Failed to cast pipeline to AppSink");
 
@@ -80,43 +102,111 @@ pub fn appsink_handler(
                 // pull_sample() blocks until a sample is ready or EOS occurs
                 match appsink.pull_sample() {
                     Ok(sample) => {
-                        // Get video metadata
-                        let caps = sample
-                            .caps()
-                            .expect("Failed to get sample caps from the appsink");
-                        let info = gstreamer_video::VideoInfo::from_caps(caps)
-                            .expect("Failed to parse VideoInfo");
-                        let width = info.width() as usize;
-                        let height = info.height() as usize;
-
-                        // Extract the buffer payload from the pulled sample
-                        if let Some(buffer) = sample.buffer() {
-                            // Map the buffer memory for reading
-                            if let Ok(map) = buffer.map_readable() {
-                                let frame = Frame {
-                                    width,
-                                    height,
-                                    pixels: map.as_slice().to_vec(),
-                                };
-                                // NOTE: do not break if `is_err()`.
-                                let _ = frame_tx.try_send(frame);
-                            }
+                        if let Some(frame) = sample_to_frame(&sample) {
+                            let _ = model_tx.try_send(frame);
                         }
                     }
                     Err(err) => {
-                        println!("Reached End of Stream (EOS) or appsink stopped: {}", err);
+                        if !shutdown.load(Ordering::Relaxed) {
+                            eprintln!("Appsink stopped: {}", err);
+                        }
                         break;
                     }
                 }
             }
-            println!("camera thread exiting");
+            println!("Camera thread exiting");
         })
         .expect("Failed to spawn camera thread")
 }
 
+// Spawn a thread to handle appsink samples for display at native camera resolution
+fn display_handler(
+    pipeline: &gstreamer::Pipeline,
+    display_tx: mpsc::SyncSender<Frame>,
+    shutdown: Arc<AtomicBool>,
+) -> std::thread::JoinHandle<()> {
+    // Use for AI detections: Extract the appsink elements by its string name
+    let appsink = pipeline
+        .by_name("display_sink")
+        .expect("GStreamer element display_sink was not found")
+        .dynamic_cast::<gstreamer_app::AppSink>()
+        .expect("Failed to cast pipeline to AppSink");
+
+    // Spawn a background thread to safely block and pull samples
+    std::thread::Builder::new()
+        .name("display_thread".into())
+        .spawn(move || {
+            while !shutdown.load(Ordering::Relaxed) {
+                // pull_sample() blocks until a sample is ready or EOS occurs
+                match appsink.pull_sample() {
+                    Ok(sample) => {
+                        if let Some(frame) = sample_to_frame(&sample) {
+                            let _ = display_tx.try_send(frame);
+                        }
+                    }
+                    Err(err) => {
+                        if !shutdown.load(Ordering::Relaxed) {
+                            eprintln!("Appsink stopped: {}", err);
+                        }
+                        break;
+                    }
+                }
+            }
+            println!("Display thread exiting");
+        })
+        .expect("Failed to spawn display thread")
+}
+
+pub fn start_camera(
+    camera: &str,
+    shutdown: Arc<AtomicBool>,
+) -> Result<
+    (
+        gstreamer::Pipeline,
+        mpsc::Receiver<Frame>,
+        mpsc::Receiver<Frame>,
+        std::thread::JoinHandle<()>,
+        std::thread::JoinHandle<()>,
+    ),
+    Box<dyn Error>,
+> {
+    // Initialize GStreamer
+    gstreamer::init()?;
+
+    // Define GStreamer pipeline: capture -> process -> overlay -> display
+    let pipeline = create_pipeline(camera)?;
+
+    let (display_tx, display_rx) = mpsc::sync_channel::<Frame>(1);
+
+    let (model_tx, model_rx) = mpsc::sync_channel::<Frame>(1);
+
+    let camera_thread = model_handler(&pipeline, model_tx, shutdown.clone());
+
+    let display_thread = display_handler(&pipeline, display_tx, shutdown.clone());
+
+    // Start input pipeline
+    match pipeline.set_state(gstreamer::State::Playing) {
+        Ok(_) => {}
+        Err(err) => {
+            panic!(
+                "Failed to start GStreamer pipeline. Check if the camera '{}' exists: {}",
+                camera, err
+            );
+        }
+    }
+
+    Ok((
+        pipeline,
+        display_rx,
+        model_rx,
+        camera_thread,
+        display_thread,
+    ))
+}
+
 // Shutdown the pipeline on exit
 pub fn cleanup(pipeline: &gstreamer::Pipeline) {
-    println!("Setting pipeline to NULL");
+    println!("Stopping GStreamer Pipeline...");
     let result = pipeline
         .set_state(gstreamer::State::Null)
         .expect("Failed to set pipeline state to Null");

@@ -1,12 +1,8 @@
-use clap::ValueEnum;
-use ndarray::{Array, Array1, Array3};
-use ort::{
-    inputs,
-    session::{Session, builder::GraphOptimizationLevel},
-    value::TensorRef,
-};
 use serde_json;
 use std::error::Error;
+use std::fs;
+use std::io;
+use std::path::Path;
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
@@ -14,11 +10,18 @@ use std::sync::{
 };
 use std::time::Duration;
 
+use ndarray::{Array, Array1, Array3};
+use ort::{
+    inputs,
+    session::{Session, builder::GraphOptimizationLevel},
+    value::TensorRef,
+};
+
 use crate::camera::Frame;
 
 pub type SharedDetections = Arc<Mutex<Array3<f32>>>; // 3D array containing model detections
 
-#[derive(ValueEnum, Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Normalization {
     Unsigned,
     Signed,
@@ -29,11 +32,88 @@ impl Normalization {
     // Returns a function pointer that takes an f32 and returns an f32
     fn get_lambda(&self) -> fn(f32) -> f32 {
         match self {
-            Normalization::Unsigned => |x| x / 255.0,
-            Normalization::Signed => |x| (x / 127.5) - 1.0,
-            Normalization::Raw => |x| x,
+            Self::Unsigned => |x| x / 255.0,
+            Self::Signed => |x| (x / 127.5) - 1.0,
+            Self::Raw => |x| x,
         }
     }
+
+    // Returns string representation of the normalization
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Unsigned => "unsigned",
+            Self::Signed => "signed",
+            Self::Raw => "raw",
+        }
+    }
+
+    // Returns the normalization type from a string
+    pub fn from_str(norm: &str) -> Self {
+        match norm {
+            "unsigned" => Self::Unsigned,
+            "signed" => Self::Signed,
+            "raw" => Self::Raw,
+            _ => Self::Raw,
+        }
+    }
+
+    pub fn str_variants() -> Vec<String> {
+        vec![
+            "unsigned".to_string(),
+            "signed".to_string(),
+            "raw".to_string(),
+        ]
+    }
+}
+
+fn configure_runtime() {
+    #[cfg(target_os = "windows")]
+    {
+        let Some(exe_dir) = std::env::current_exe()
+            .ok()
+            .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
+        else {
+            return;
+        };
+
+        let gstreamer_dir = exe_dir.join("gstreamer");
+        let plugin_dir = gstreamer_dir.join("lib").join("gstreamer-1.0");
+        let bin_dir = gstreamer_dir.join("bin");
+
+        if plugin_dir.is_dir() {
+            let plugin_path = plugin_dir.to_string_lossy().into_owned();
+            let bin_path = bin_dir.to_string_lossy();
+            let current_path = std::env::var_os("PATH").unwrap_or_default();
+            let path = std::env::join_paths(
+                std::iter::once(bin_path.into_owned().into())
+                    .chain(std::env::split_paths(&current_path)),
+            )
+            .expect("Failed to construct the Windows runtime PATH");
+
+            // Environment variables must be set before GStreamer is initialized.
+            unsafe {
+                std::env::set_var("PATH", path);
+                std::env::set_var("GST_PLUGIN_PATH_1_0", &plugin_path);
+                std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &plugin_path);
+            }
+        }
+    }
+}
+
+pub fn read_model_contents() -> Result<Vec<std::path::PathBuf>, io::Error> {
+    // Point to the target directory
+    let dir_path = "./assets/models";
+
+    let entries = fs::read_dir(dir_path)?
+        .map(|res| res.map(|e| e.path()))
+        .collect::<Result<Vec<_>, io::Error>>()?;
+
+    let onnx_files: Vec<_> = entries
+        .into_iter()
+        .filter(|path| path.extension().is_some_and(|ext| ext == "onnx"))
+        .collect();
+
+    Ok(onnx_files)
 }
 
 pub fn initialize_model<'a>(model_path: &str) -> Result<Session, Box<dyn Error>> {
@@ -48,7 +128,7 @@ pub fn initialize_model<'a>(model_path: &str) -> Result<Session, Box<dyn Error>>
 pub fn inference_handler(
     model_path: String,
     norm: Normalization,
-    frame_rx: mpsc::Receiver<Frame>,
+    model_rx: mpsc::Receiver<Frame>,
     detections: SharedDetections,
     shutdown: Arc<AtomicBool>,
 ) -> std::thread::JoinHandle<()> {
@@ -96,7 +176,7 @@ pub fn inference_handler(
                     break;
                 }
 
-                match frame_rx.recv_timeout(Duration::from_millis(100)) {
+                match model_rx.recv_timeout(Duration::from_millis(100)) {
                     Ok(frame) => {
                         // YOLOv8n input takes CHW format.
                         let mut data = Array::zeros((
@@ -160,4 +240,26 @@ pub fn inference_handler(
             println!("model thread exiting");
         })
         .expect("Failed to spawn model inference thread")
+}
+
+pub fn start_model(
+    model: &str,
+    shutdown: Arc<AtomicBool>,
+    model_rx: mpsc::Receiver<Frame>,
+    detections: SharedDetections,
+    norm: Normalization,
+) -> Result<std::thread::JoinHandle<()>, Box<dyn Error>> {
+    let model_path = Path::new("./assets").join("models").join(model);
+
+    configure_runtime();
+
+    let model_thread = inference_handler(
+        model_path.to_string_lossy().into_owned(),
+        norm,
+        model_rx,
+        detections,
+        shutdown,
+    );
+
+    Ok(model_thread)
 }
