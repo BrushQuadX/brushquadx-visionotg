@@ -101,10 +101,9 @@ fn configure_runtime() {
 }
 
 pub fn read_model_contents() -> Result<Vec<std::path::PathBuf>, io::Error> {
-    // Point to the target directory
-    let dir_path = "./assets/models";
+    let dir_path = model_directory();
 
-    let entries = fs::read_dir(dir_path)?
+    let entries = fs::read_dir(&dir_path)?
         .map(|res| res.map(|e| e.path()))
         .collect::<Result<Vec<_>, io::Error>>()?;
 
@@ -114,6 +113,19 @@ pub fn read_model_contents() -> Result<Vec<std::path::PathBuf>, io::Error> {
         .collect();
 
     Ok(onnx_files)
+}
+
+fn model_directory() -> std::path::PathBuf {
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(exe_dir) = exe_path.parent() {
+            let installed_models = exe_dir.join("models");
+            if installed_models.is_dir() {
+                return installed_models;
+            }
+        }
+    }
+
+    Path::new("assets").join("models")
 }
 
 pub fn initialize_model<'a>(model_path: &str) -> Result<Session, Box<dyn Error>> {
@@ -249,7 +261,7 @@ pub fn start_model(
     detections: SharedDetections,
     norm: Normalization,
 ) -> Result<std::thread::JoinHandle<()>, Box<dyn Error>> {
-    let model_path = Path::new("./assets").join("models").join(model);
+    let model_path = model_directory().join(model);
 
     configure_runtime();
 
