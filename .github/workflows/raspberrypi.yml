@@ -1,30 +1,30 @@
 name: Raspberry Pi package
 
 on:
-	workflow_dispatch:
-	push:
-		tags:
-			- "v*"
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
 
 jobs:
-	package:
-		runs-on: ubuntu-24.04-arm
-		permissions:
-			contents: read
+  package:
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      contents: read
 
-		steps:
-			- name: Check out repository
-				uses: actions/checkout@v4
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
 
-			- name: Build ARM64 Debian package
-				shell: bash
-				run: |
-					chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
-					packaging/linux/build_deb.sh --setup
+      - name: Build ARM64 Debian package
+        shell: bash
+        run: |
+          chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
+          packaging/linux/build_deb.sh --setup
 
-			- name: Upload Debian package
-				uses: actions/upload-artifact@v4
-				with:
-					name: visionotg-linux-arm64
-					path: target/linux-packages/*.deb
-					if-no-files-found: error
+      - name: Upload Debian package
+        uses: actions/upload-artifact@v4
+        with:
+          name: visionotg-linux-arm64
+          path: target/linux-packages/*.deb
+          if-no-files-found: error
