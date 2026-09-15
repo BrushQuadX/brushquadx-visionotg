@@ -5,7 +5,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ORT_SOURCE_DIR="$SCRIPT_DIR/onnxruntime"
+ORT_SOURCE_DIR="$REPOSITORY_ROOT/onnxruntime"
 ORT_BUILD_DIR="$ORT_SOURCE_DIR/build/Linux/Release"
 cd "$REPOSITORY_ROOT"
 

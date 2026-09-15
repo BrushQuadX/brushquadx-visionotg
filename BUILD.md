@@ -81,7 +81,7 @@ The following commands must be run on your PC with administrator permissions.
 6. Build the bundle and installer:
 
     ```shell
-    powershell -ExecutionPolicy Bypass -File .\packaging\windows\build_windows.ps1
+    > powershell -ExecutionPolicy Bypass -File .\packaging\windows\build_windows.ps1
     ```
 
     The script does all of the following automatically:
@@ -99,7 +99,7 @@ The following commands must be run on your PC with administrator permissions.
     To prepare or troubleshoot the runtime separately, you can run the downloader directly:
 
     ```shell
-    powershell -ExecutionPolicy Bypass -File .\packaging\windows\download_runtime.ps1
+    > powershell -ExecutionPolicy Bypass -File .\packaging\windows\download_runtime.ps1
     ```
 
 ## Build Raspberry Pi Package
@@ -109,16 +109,16 @@ The Raspberry Pi package targets a 64-bit Raspberry Pi OS installation on Raspbe
 1. Clone and enter the repository:
 
     ```shell
-    git clone https://github.com/BrushQuadX/brushquadx-visionotg.git
-    cd brushquadx-visionotg
+    $ git clone https://github.com/BrushQuadX/brushquadx-visionotg.git
+    $ cd brushquadx-visionotg
     ```
 
 2. Build the Debian package and install it:
 
     ```shell
-    chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
-    ./packaging/linux/build_deb.sh --setup
-    sudo apt install ./target/linux-packages/visionotg_1.0.0_arm64.deb
+    $ chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
+    $ ./packaging/linux/build_deb.sh --setup
+    $ sudo apt install ./target/linux-packages/visionotg_1.0.0_arm64.deb
     ```
 
     The package installs the application under `/opt/visionotg`, the `votg` launcher under `/usr/bin`, and a desktop entry in `/usr/share/applications`. It includes the ARM64 ONNX Runtime library and model files; GStreamer and graphical runtime libraries are installed through Debian dependencies.
@@ -126,7 +126,26 @@ The Raspberry Pi package targets a 64-bit Raspberry Pi OS installation on Raspbe
 3. For later package rebuilds, skip dependency setup and optionally set the version:
 
     ```shell
-    ./packaging/linux/build_deb.sh --skip-build --version 1.0.1
+    $ ./packaging/linux/build_deb.sh --skip-build --version 1.0.1
+    ```
+
+    `--skip-build` does not install dependencies, build ONNX Runtime, or compile the Rust application. Use it only when these files already exist:
+
+    * `target/release/votg`
+    * `onnxruntime/build/Linux/Release/libonnxruntime.so`
+
+    Available `build_deb.sh` options:
+
+    * `--setup` installs the native build dependencies, reuses or clones the top-level `onnxruntime` checkout, builds ONNX Runtime, and compiles VisionOTG. Use this for the first build or after removing the build outputs.
+    * `--skip-build` packages the existing release executable and ONNX Runtime library without rebuilding them. This is useful when only the package metadata, version, or output location has changed.
+    * `--version VERSION` overrides the Debian package version. Without it, the version is read from `Cargo.toml`.
+    * `--output DIRECTORY` writes the `.deb` file to a custom directory instead of `target/linux-packages`.
+    * `--help` prints the command usage and available options.
+
+    For example, create a package with a custom version and output directory:
+
+    ```shell
+    $ ./packaging/linux/build_deb.sh --skip-build --version 1.0.1 --output ~/visionotg-packages
     ```
 
     Install or upgrade the resulting package with `sudo apt install ./target/linux-packages/visionotg_1.0.1_arm64.deb`.

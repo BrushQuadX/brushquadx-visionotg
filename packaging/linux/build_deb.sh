@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 BUILD_SCRIPT="$SCRIPT_DIR/build.sh"
-ORT_BUILD_DIR="$SCRIPT_DIR/onnxruntime/build/Linux/Release"
+ORT_BUILD_DIR="$REPOSITORY_ROOT/onnxruntime/build/Linux/Release"
 PACKAGE_NAME="visionotg"
 VERSION=""
 OUTPUT_DIRECTORY="$REPOSITORY_ROOT/target/linux-packages"
