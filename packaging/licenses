@@ -1,0 +1,78 @@
+VisionOTG License and Third-Party Notices
+=========================================
+
+This file records the licenses for VisionOTG and the runtime components
+used by the packaging workflows. It is a notice index, not a replacement
+for the complete license texts linked below.
+
+VisionOTG
+---------
+
+Copyright (c) John Santos / BrushQuadX
+
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+SPDX identifier: CC-BY-4.0
+License text: https://creativecommons.org/licenses/by/4.0/legalcode
+
+The VisionOTG source code, application assets, and documentation are
+licensed under CC BY 4.0 unless a file states otherwise.
+
+ONNX Runtime
+------------
+
+The application uses ONNX Runtime for neural-network inference. Linux ARM64
+packages build and distribute the ONNX Runtime shared library. Windows
+packages download the ONNX Runtime binary during packaging.
+
+License: MIT
+SPDX identifier: MIT
+Project: https://github.com/microsoft/onnxruntime
+License text: https://github.com/microsoft/onnxruntime/blob/main/LICENSE
+Third-party notices: https://github.com/microsoft/onnxruntime/tree/main
+
+The ONNX Runtime repository includes additional third-party components. The
+corresponding upstream third-party notices must be retained with any runtime
+distribution.
+
+GStreamer
+---------
+
+The application uses GStreamer and its plugin modules for camera capture and
+video conversion. Linux packages depend on the distribution's GStreamer
+packages. Windows packages download the GStreamer MSVC runtime and
+development packages during packaging.
+
+License: GNU Lesser General Public License, version 2.1 or later (LGPL-2.1-or-later)
+SPDX identifier: LGPL-2.1-or-later
+Project: https://gstreamer.freedesktop.org/
+License text: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+Legal information: https://gstreamer.freedesktop.org/documentation/license.html
+
+GStreamer plugins and bundled components can have their own licenses. Keep
+the license files and notices shipped by the GStreamer distribution used to
+build or deploy the application.
+
+Rust dependencies
+-----------------
+
+VisionOTG uses third-party Rust crates listed in Cargo.toml and resolved in
+Cargo.lock. Their individual license terms are available from crates.io and
+the corresponding upstream repositories. The dependency graph can include
+multiple licenses, so this file intentionally does not summarize it as one
+license.
+
+To inspect the resolved dependency licenses on a development machine, install
+cargo-about and run:
+
+	cargo about generate about.hbs > target/third-party-licenses.html
+
+The generated report should accompany any distribution that requires a full
+Rust dependency notice bundle.
+
+Packaging responsibility
+------------------------
+
+The packager is responsible for preserving the license and notice files of
+downloaded or system-provided runtime components. Verify the exact versions
+used by packaging/windows/download_runtime.ps1 and packaging/linux/build.sh
+when preparing a release.

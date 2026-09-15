@@ -147,8 +147,15 @@ pub fn inference_handler(
     std::thread::Builder::new()
         .name("model_thread".into())
         .spawn(move || {
+            eprintln!("Loading ONNX model: {}", model_path);
             let mut session =
-                initialize_model(&model_path).expect("Failed to initialize YOLOv8 ONNX model");
+                match initialize_model(&model_path) {
+                    Ok(session) => session,
+                    Err(err) => {
+                        eprintln!("Failed to initialize YOLOv8 ONNX model '{}': {err}", model_path);
+                        return;
+                    }
+                };
             let normalize = norm.get_lambda();
 
             let (input0_shape, channels) = {
@@ -215,7 +222,7 @@ pub fn inference_handler(
                         let outputs = match session.run(inputs!["images" => input_tensor]) {
                             Ok(outputs) => outputs,
                             Err(err) => {
-                                eprintln!("ONNX model inference execution failed: {err}");
+                                eprintln!("ONNX model inference execution failed for '{}': {err}", model_path);
                                 break;
                             }
                         };
@@ -223,10 +230,19 @@ pub fn inference_handler(
                         let mut out = match outputs["output0"].try_extract_array::<f32>() {
                             Ok(array) => array.index_axis(ndarray::Axis(0), 0).to_owned(),
                             Err(err) => {
-                                eprintln!("Failed to read model output 'output0': {err}");
+                                eprintln!("Failed to read model output 'output0' from '{}': {err}", model_path);
                                 break;
                             }
                         };
+
+                        if out.shape() != [300, 6] {
+                            eprintln!(
+                                "Unexpected ONNX model output shape for '{}': {:?}; expected [300, 6]",
+                                model_path,
+                                out.shape()
+                            );
+                            break;
+                        }
 
                         // Normalize detections to [0, 1] for overlay drawing.
                         let scale = Array1::from(vec![

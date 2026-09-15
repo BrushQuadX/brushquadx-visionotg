@@ -118,7 +118,8 @@ The Raspberry Pi package targets a 64-bit Raspberry Pi OS installation on Raspbe
     ```shell
     $ chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
     $ ./packaging/linux/build_deb.sh --setup
-    $ sudo apt install ./target/linux-packages/visionotg_1.0.0_arm64.deb
+    $ cp ./target/linux-packages/visionotg_1.0.0_arm64.deb /tmp/
+    $ sudo apt install /tmp/visionotg_1.0.0_arm64.deb
     ```
 
     The package installs the application under `/opt/visionotg`, the `votg` launcher under `/usr/bin`, and a desktop entry in `/usr/share/applications`. It includes the ARM64 ONNX Runtime library and model files; GStreamer and graphical runtime libraries are installed through Debian dependencies.
