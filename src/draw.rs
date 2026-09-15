@@ -749,7 +749,7 @@ pub fn draw_overlay(
         let score = d[4];
         let class = d[5];
 
-        if score < 0.25 {
+        if score < 0.50 {
             continue;
         }
 
