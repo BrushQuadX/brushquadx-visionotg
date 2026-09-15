@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# Build VisionOTG Package on aarch64
+# Build VisionOTG on a Raspberry Pi 5 (aarch64)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+REPOSITORY_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+ORT_SOURCE_DIR="$SCRIPT_DIR/onnxruntime"
+ORT_BUILD_DIR="$ORT_SOURCE_DIR/build/Linux/Release"
+cd "$REPOSITORY_ROOT"
 
 if [ -f "$HOME/.cargo/env" ]; then
   source "$HOME/.cargo/env"
@@ -29,6 +32,11 @@ for arg in "$@"; do
       ;;
   esac
 done
+
+if [ "$(uname -m)" != "aarch64" ]; then
+  echo "This script must run on an aarch64 Linux host (Raspberry Pi 5)." >&2
+  exit 1
+fi
 
 if [ "$DO_SETUP" = true ]; then
   # Update package list
@@ -68,18 +76,18 @@ if [ "$DO_SETUP" = true ]; then
     libsqlite3-dev
 
   # Clone or update ONNX Runtime repository
-  if [ -d "$SCRIPT_DIR/onnxruntime/.git" ]; then
+  if [ -d "$ORT_SOURCE_DIR/.git" ]; then
     echo "Using existing onnxruntime checkout"
-    cd "$SCRIPT_DIR/onnxruntime"
+    cd "$ORT_SOURCE_DIR"
     git fetch --all --tags --prune
     git pull --ff-only || true
   else
-    if [ -e "$SCRIPT_DIR/onnxruntime" ]; then
+    if [ -e "$ORT_SOURCE_DIR" ]; then
       echo "Found existing onnxruntime directory but it is not a git checkout. Remove it and rerun --setup."
       exit 1
     fi
     git clone --recursive --branch v1.28.0 https://github.com/microsoft/onnxruntime.git
-    cd "$SCRIPT_DIR/onnxruntime"
+    cd "$ORT_SOURCE_DIR"
   fi
 
   # Create build environment
@@ -106,12 +114,12 @@ if [ "$DO_SETUP" = true ]; then
   #   --target onnxruntime \
   #   -j2
 
-  cd "$SCRIPT_DIR"
+  cd "$REPOSITORY_ROOT"
 fi
 
 # Build VisionOTG
 export ORT_STRATEGY=system
-export ORT_LIB_LOCATION="$SCRIPT_DIR/onnxruntime/build/Linux/Release"
-export LD_LIBRARY_PATH="$SCRIPT_DIR/onnxruntime/build/Linux/Release:$LD_LIBRARY_PATH"
+export ORT_LIB_LOCATION="$ORT_BUILD_DIR"
+export LD_LIBRARY_PATH="$ORT_BUILD_DIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
-cargo build --release
+cargo build --locked --release

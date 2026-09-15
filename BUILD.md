@@ -104,6 +104,33 @@ The following commands must be run on your PC with administrator permissions.
 
 ## Build Raspberry Pi Package
 
+The Raspberry Pi package targets a 64-bit Raspberry Pi OS installation on Raspberry Pi 5 (`aarch64`). Run the commands below on the Pi, or on an equivalent native ARM64 Linux host. The setup step builds ONNX Runtime from source, so the first build can take a while.
+
+1. Clone and enter the repository:
+
+    ```shell
+    git clone https://github.com/BrushQuadX/brushquadx-visionotg.git
+    cd brushquadx-visionotg
+    ```
+
+2. Build the Debian package and install it:
+
+    ```shell
+    chmod +x packaging/linux/*.sh packaging/linux/visionotg-launcher
+    ./packaging/linux/build_deb.sh --setup
+    sudo apt install ./target/linux-packages/visionotg_1.0.0_arm64.deb
+    ```
+
+    The package installs the application under `/opt/visionotg`, the `votg` launcher under `/usr/bin`, and a desktop entry in `/usr/share/applications`. It includes the ARM64 ONNX Runtime library and model files; GStreamer and graphical runtime libraries are installed through Debian dependencies.
+
+3. For later package rebuilds, skip dependency setup and optionally set the version:
+
+    ```shell
+    ./packaging/linux/build_deb.sh --skip-build --version 1.0.1
+    ```
+
+    Install or upgrade the resulting package with `sudo apt install ./target/linux-packages/visionotg_1.0.1_arm64.deb`.
+
 
 ## Convert Model
 

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=VisionOTG
+Comment=FPV camera with AI inference
+Exec=/usr/bin/votg
+Terminal=false
+Categories=AudioVideo;Video;
