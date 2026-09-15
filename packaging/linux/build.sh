@@ -98,7 +98,6 @@ if [ "$DO_SETUP" = true ]; then
 
   # Build ONNX Runtime package
   rm -rf ~/.cache/ort.pyke.io
-  export CXXFLAGS="${CXXFLAGS:-} -Wno-error=calloc-transposed-args"
 
   ./build.sh \
     --config Release \
