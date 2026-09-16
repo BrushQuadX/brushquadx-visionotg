@@ -180,7 +180,3 @@ The program uses a model from [Ultralytics](https://github.com/ultralytics) that
     ```shell
     yolo export model=yolov8n.pt format=onnx nms=True
     ```
-
-## Software Development
-
-Format the rust program with `cargo fmt`.

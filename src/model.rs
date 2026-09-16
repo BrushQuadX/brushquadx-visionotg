@@ -67,6 +67,32 @@ impl Normalization {
 }
 
 pub fn configure_runtime() {
+    #[cfg(target_os = "linux")]
+    {
+        let Some(exe_dir) = std::env::current_exe()
+            .ok()
+            .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
+        else {
+            return;
+        };
+
+        let runtime_path = exe_dir.join("lib").join("libonnxruntime.so");
+        if runtime_path.is_file() {
+            let runtime_path = runtime_path.to_string_lossy().into_owned();
+            if std::env::var_os("ORT_DYLIB_PATH").is_none() {
+                unsafe {
+                    std::env::set_var("ORT_DYLIB_PATH", &runtime_path);
+                }
+            }
+            eprintln!("ONNX Runtime library: {}", runtime_path);
+        } else {
+            eprintln!(
+                "ONNX Runtime library not found beside executable: {}",
+                runtime_path.display()
+            );
+        }
+    }
+
     #[cfg(target_os = "windows")]
     {
         let Some(exe_dir) = std::env::current_exe()

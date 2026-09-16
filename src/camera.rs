@@ -18,27 +18,31 @@ pub struct Frame {
 // -----------------------------------------------------
 pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Error>> {
     // Choose camera source based on OS
-    let (camera_src, camera_index) = {
+    let (camera_src, camera_index, source_caps) = {
         #[cfg(target_os = "linux")]
         {
-            ("v4l2src", format!("device={}", camera))
+            (
+                "v4l2src",
+                format!("device={}", camera),
+                "! video/x-raw,width=640,height=480,framerate=30/1",
+            )
         }
         #[cfg(target_os = "macos")]
         {
-            ("avfvideosrc", format!("device-index={}", camera))
+            ("avfvideosrc", format!("device-index={}", camera), "")
         }
         #[cfg(target_os = "windows")]
         {
-            ("mfvideosrc", format!("device-index={}", camera))
+            ("mfvideosrc", format!("device-index={}", camera), "")
         }
         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
         {
-            ("autovideosrc", format!("device-index={}", camera))
+            ("autovideosrc", format!("device-index={}", camera), "")
         }
     };
 
     let pipeline_str: String = format!(
-        "{} {} \
+        "{} {} {} \
         ! videoconvert \
         ! tee name=t \
         t. ! queue \
@@ -49,7 +53,9 @@ pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Erro
             ! videoconvert \
             ! video/x-raw,width=640,height=640,format=RGB \
             ! appsink name=model_sink emit-signals=true sync=false max-buffers=1 drop=true",
-        camera_src, camera_index
+        camera_src,
+        camera_index,
+        source_caps
     );
 
     let pipeline = gstreamer::parse::launch(&pipeline_str)?
