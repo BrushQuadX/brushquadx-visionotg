@@ -221,7 +221,7 @@ pub fn inference_handler(
                     break;
                 }
 
-                match model_rx.recv_timeout(Duration::from_millis(100)) {
+                match model_rx.recv_timeout(Duration::from_millis(1000)) {
                     Ok(frame) => {
                         // YOLOv8n input takes CHW format.
                         let mut data = Array::zeros((
@@ -231,11 +231,6 @@ pub fn inference_handler(
                             width as usize,
                         ));
                         let hw = frame.width * frame.height;
-
-                        println!("Width: {:?}", frame.width);
-                        println!("Height: {:?}", frame.height);
-                        println!("Channels: {:?}", frame.channels);
-
                         let out = data.as_slice_mut().expect("Failed to get mutable slice");
                         // Perform unsigned normalization
                         for (i, rgb) in frame.pixels.chunks_exact(3).enumerate() {

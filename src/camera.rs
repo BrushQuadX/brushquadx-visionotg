@@ -50,8 +50,7 @@ pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Erro
             ! videoconvert \
             ! video/x-raw,width=640,height=640,format=RGB \
             ! appsink name=model_sink emit-signals=true sync=false max-buffers=1 drop=true",
-        camera_src,
-        camera_index,
+        camera_src, camera_index,
     );
 
     let pipeline = gstreamer::parse::launch(&pipeline_str)?
@@ -181,12 +180,7 @@ pub fn start_camera(
     let pipeline = create_pipeline(camera)?;
 
     let (display_tx, display_rx) = mpsc::sync_channel::<Frame>(1);
-
     let (model_tx, model_rx) = mpsc::sync_channel::<Frame>(1);
-
-    let camera_thread = model_handler(&pipeline, model_tx, shutdown.clone());
-
-    let display_thread = display_handler(&pipeline, display_tx, shutdown.clone());
 
     // Start input pipeline
     match pipeline.set_state(gstreamer::State::Playing) {
@@ -198,6 +192,10 @@ pub fn start_camera(
             );
         }
     }
+
+    // Start appsink consumers after the pipeline has entered Playing.
+    let camera_thread = model_handler(&pipeline, model_tx, shutdown.clone());
+    let display_thread = display_handler(&pipeline, display_tx, shutdown.clone());
 
     Ok((
         pipeline,
