@@ -10,7 +10,6 @@ use std::sync::{
 pub struct Frame {
     pub width: usize,
     pub height: usize,
-    pub channels: usize,
     pub pixels: Vec<u8>, // RGB pixel data
 }
 
@@ -69,7 +68,6 @@ fn sample_to_frame(sample: &gstreamer::Sample) -> Option<Frame> {
     let info = gstreamer_video::VideoInfo::from_caps(caps).expect("Failed to parse VideoInfo");
     let width = info.width() as usize;
     let height = info.height() as usize;
-    let channels = info.n_components() as usize;
 
     // Extract the buffer payload from the pulled sample
     let buffer = sample.buffer()?;
@@ -79,7 +77,6 @@ fn sample_to_frame(sample: &gstreamer::Sample) -> Option<Frame> {
     Some(Frame {
         width,
         height,
-        channels,
         pixels,
     })
 }
