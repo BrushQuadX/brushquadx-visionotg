@@ -10,6 +10,7 @@ use std::sync::{
 pub struct Frame {
     pub width: usize,
     pub height: usize,
+    pub channels: usize,
     pub pixels: Vec<u8>, // RGB pixel data
 }
 
@@ -18,31 +19,27 @@ pub struct Frame {
 // -----------------------------------------------------
 pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Error>> {
     // Choose camera source based on OS
-    let (camera_src, camera_index, source_caps) = {
+    let (camera_src, camera_index) = {
         #[cfg(target_os = "linux")]
         {
-            (
-                "v4l2src",
-                format!("device={}", camera),
-                "! video/x-raw,width=640,height=480,framerate=30/1",
-            )
+            ("v4l2src", format!("device={}", camera))
         }
         #[cfg(target_os = "macos")]
         {
-            ("avfvideosrc", format!("device-index={}", camera), "")
+            ("avfvideosrc", format!("device-index={}", camera))
         }
         #[cfg(target_os = "windows")]
         {
-            ("mfvideosrc", format!("device-index={}", camera), "")
+            ("mfvideosrc", format!("device-index={}", camera))
         }
         #[cfg(not(any(target_os = "linux", target_os = "macos", target_os = "windows")))]
         {
-            ("autovideosrc", format!("device-index={}", camera), "")
+            ("autovideosrc", format!("device-index={}", camera))
         }
     };
 
     let pipeline_str: String = format!(
-        "{} {} {} \
+        "{} {} \
         ! videoconvert \
         ! tee name=t \
         t. ! queue \
@@ -55,7 +52,6 @@ pub fn create_pipeline(camera: &str) -> Result<gstreamer::Pipeline, Box<dyn Erro
             ! appsink name=model_sink emit-signals=true sync=false max-buffers=1 drop=true",
         camera_src,
         camera_index,
-        source_caps
     );
 
     let pipeline = gstreamer::parse::launch(&pipeline_str)?
@@ -74,6 +70,7 @@ fn sample_to_frame(sample: &gstreamer::Sample) -> Option<Frame> {
     let info = gstreamer_video::VideoInfo::from_caps(caps).expect("Failed to parse VideoInfo");
     let width = info.width() as usize;
     let height = info.height() as usize;
+    let channels = info.n_components() as usize;
 
     // Extract the buffer payload from the pulled sample
     let buffer = sample.buffer()?;
@@ -83,6 +80,7 @@ fn sample_to_frame(sample: &gstreamer::Sample) -> Option<Frame> {
     Some(Frame {
         width,
         height,
+        channels,
         pixels,
     })
 }

@@ -231,6 +231,11 @@ pub fn inference_handler(
                             width as usize,
                         ));
                         let hw = frame.width * frame.height;
+
+                        println!("Width: {:?}", frame.width);
+                        println!("Height: {:?}", frame.height);
+                        println!("Channels: {:?}", frame.channels);
+
                         let out = data.as_slice_mut().expect("Failed to get mutable slice");
                         // Perform unsigned normalization
                         for (i, rgb) in frame.pixels.chunks_exact(3).enumerate() {
