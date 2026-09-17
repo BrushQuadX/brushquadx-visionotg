@@ -5,8 +5,8 @@ edition = "2024"
 authors = ["John Santos johnmarisantos@protonmail.com"]
 description = "FPV Camera with AI inference"
 license = "CC-BY-4.0"
-repository = "https://github.com/JohnMVSantos/NRF24-MultiWii-Drone"
-homepage = "https://github.com/JohnMVSantos/NRF24-MultiWii-Drone"
+repository = "https://github.com/BrushQuadX/brushquadx-visionotg"
+homepage = "https://www.johnmvsantos.com/html_projects/arduino_drone"
 readme = "../README.md"
 keywords = ["fpv", "camera", "drone", "ai", "yolo", "inference"]
 categories = ["computer-vision"]
@@ -25,10 +25,6 @@ ndarray = "0.17.2"
 serde_json = "1.0.151"
 clap = { version = "4.6.4", features = ["derive"] }
 ctrlc = "3.5.2"
-eframe = { version = "0.36.1", features = ["default", "glow"] }
-egui_extras = { version = "0.36.1", features = ["default", "image"] }
-egui_alignments = "0.3.9"
-env_logger = "0.11.11"
 
 [target.'cfg(not(target_arch = "aarch64"))'.dependencies]
 ort = { version = "2.0.0-rc.12", features = ["ndarray"] }
