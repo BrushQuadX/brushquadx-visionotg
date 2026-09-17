@@ -1,6 +1,8 @@
- # BrushQuadX VisionOTG
+# BrushQuadX VisionOTG
 
 VisionOTG is a native desktop FPV camera application with real-time YOLO object detection. It captures video through GStreamer, runs inference with ONNX Runtime, and renders the camera feed and detection boxes in an `egui` interface.
+
+![VisionOTG Demo](assets/visionotg.gif)
 
 The project targets:
 
@@ -15,6 +17,65 @@ The project targets:
 * Unsigned, signed, and raw input normalization modes.
 * Background camera, display, and inference workers so the UI remains responsive.
 * Native ARM64 deployment with a packaged ONNX Runtime shared library.
+
+## Installation
+
+### Windows
+
+1. Download the `VisionOTG-windows-x64` package 
+
+    ![Windows Package](assets/images/windows_package_download.png)
+
+2. Extract the Zip file
+
+    ![Windows Package Installer](assets/images/windows_package_installer.png)
+
+3. Go through the setup instructions
+
+    ![Windows Setup](assets/images/windows_setup.png)
+
+    ![Windows Progress](assets/images/windows_progress.png)
+
+4. Run `votg` application
+
+    ![Windows Run](assets/images/windows_run.png)
+
+    ![Windows Demo](assets/images/windows_demo.png)
+
+    To uninstall the application, run the "unins000.exe" executable.
+
+    ![Windows Uninstall](assets/images/windows_uninstall.png)
+
+### Linux
+
+1. Download `visionotg-linux-arm64` package
+
+    ![Linux Package](assets/images/linux_package_download.png)
+
+2. Extract the file
+
+    ```shell
+    $ unzip visionotg-linux-arm64.zip
+    Archive:  visionotg-linux-arm64.zip
+    inflating: visionotg_1.0.0_arm64.deb
+    ```
+
+3. Install the application 
+
+    ```shell
+    $ cp ./visionotg_1.0.0_arm64.deb /tmp/
+    $ sudo apt install /tmp/visionotg_1.0.0_arm64.deb
+    ```
+
+4. Run the application with the command `votg`
+
+    *Note: you can find your Linux camera by running the command `v4l2-ctl --list-devices`.*
+
+    ![Windows Run](assets/images/linux_run.png)
+
+    ![Windows Demo](assets/images/pi_demo.png)
+
+    To uninstall the application, run the following command `sudo apt remove visionotg`.
 
 ## Requirements
 
@@ -32,6 +93,10 @@ The exact setup and packaging commands are documented in [BUILD.md](BUILD.md).
 The default model is `yolov8n.onnx`. Models are discovered from `assets/models` during development. Packaged builds place models beside the installed executable or in the Windows bundle, allowing the application to use the same runtime-relative lookup in both cases.
 
 Models should be exported with Ultralytics using embedded NMS and metadata describing a three-channel, `640 x 640` input. See [packaging/model.sh](packaging/model.sh) and [BUILD.md](BUILD.md#convert-model) for the conversion workflow.
+
+### Camera
+
+The default camera is "0" which is typically suitable for Windows computers with a camera attached. Though for Linux machines, it typically follows the form "/dev/video0". To find your camera in Linux run `v4l2-ctl --list-devices`.
 
 ## Run From Source
 
