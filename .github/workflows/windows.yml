@@ -34,6 +34,12 @@ jobs:
         shell: pwsh
         run: .\packaging\windows\build_windows.ps1
 
+      - name: Create Windows release archive
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path target/release-assets | Out-Null
+          Compress-Archive -Path target/windows-installer/VisionOTGSetup.exe -DestinationPath target/release-assets/VisionOTG-windows-x64.zip -Force
+
       - name: Upload installer
         uses: actions/upload-artifact@v5
         with:
@@ -41,8 +47,8 @@ jobs:
           path: target/windows-installer/VisionOTGSetup.exe
           if-no-files-found: error
 
-      - name: Attach installer to tag release
+      - name: Attach Windows installer to tag release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: target/windows-installer/VisionOTGSetup.exe
+          files: target/release-assets/VisionOTG-windows-x64.zip

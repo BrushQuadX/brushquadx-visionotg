@@ -10,7 +10,7 @@ jobs:
   package:
     runs-on: ubuntu-24.04-arm
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - name: Check out repository
@@ -28,3 +28,15 @@ jobs:
           name: visionotg-linux-arm64
           path: target/linux-packages/*.deb
           if-no-files-found: error
+
+      - name: Create Linux release archive
+        shell: bash
+        run: |
+          mkdir -p target/release-assets
+          zip -j target/release-assets/visionotg-linux-arm64.zip target/linux-packages/*.deb
+
+      - name: Attach Linux installer to tag release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/release-assets/visionotg-linux-arm64.zip
